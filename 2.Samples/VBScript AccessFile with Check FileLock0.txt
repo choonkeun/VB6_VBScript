@@ -1,0 +1,69 @@
+<%
+
+Const PERMISSION_DENIED = 70, ForReading = 1, ForWriting = 2, ForAppending = 8
+Dim fso, fs, isAccessed
+
+currentDate = Year(Now) & "-" & Month(Now) & "-" & Day(Now) & " " & Hour(Now) & ":" & Minute(Now) & ":" & Second(Now)
+sFilePath = "C:\WebHome\test.txt"
+
+isAccessed = OpenReadFile(sFilePath, 10) 
+if isAccessed AND Err.Number = 0 then 
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set fs = fso.OpenTextFile(sFilePath, ForAppending, True)
+    fs.WriteLine( currentDate )
+    fs.Close
+    Wscript.Echo("sucess")
+    'response.write("sucess")
+else
+    Wscript.Echo("failed:" & CStr(Err.Number) & "-" & Err.Description)
+    'response.write("failed:" & CStr(Err.Number) & "-" & Err.Description)
+end if
+
+
+Function OpenReadFile(sFilePath, iMaxTry)
+    'Const PERMISSION_DENIED = 70, ForReading = 1, ForWriting = 2, ForAppending = 8
+    Dim fso, fs, i
+    Dim nErr: nErr = 0
+    
+    OpenReadFile = False
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    For i = 0 To iMaxTry
+        'To Get the status of file, open as Write mode
+        'if it is not accessable then Open Error will raised
+        'then "On Error Resume Next" will ignore the error and proceed to next statement
+        'then check Err.Number to see what kind of error
+        'then decide what to do
+        
+        On Error Goto 0         'clear "On Error Resume Next", Err.Clear
+        On Error Resume Next    'set "On Error Resume Next"
+        Set fs = fso.OpenTextFile(sFilePath, ForAppending, True)
+        
+        Select Case Err.Number
+            Case  0: OpenReadFile = True: Exit For  'sucess
+            Case 70:                'file is locked - keep looping
+           'Case 52: Exit For       'Bad file name or number
+           'Case 53: Exit For       'File not found
+           'Case 76: Exit For       'Path not found
+           'Case Else
+        End Select
+
+        Sleep(1)
+        'Wscript.Sleep 1000     'wait 1 second, classic asp do not support
+        Wscript.Echo "Try open: " & i
+    Next
+    Set fso = Nothing
+    Set fs = Nothing
+    If Err.Number = PERMISSION_DENIED Then
+        'Raise Custom Error with description
+        'send error result to caller using Err.Number
+        Err.Raise 513 + nErr, ,"File " & sFilePath & " is locked and timeout was exceeded."
+    End If
+End Function
+
+Function Sleep(seconds)
+    set oShell = CreateObject("Wscript.Shell")
+    cmd = "%COMSPEC% /c timeout " & seconds & " /nobreak"
+    oShell.Run cmd,0,1
+End function
+
+%>
