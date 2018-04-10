@@ -20,6 +20,14 @@
     outValue = PasswordMasking(tmpStr)
     response.write("4" + outValue + "<br />")
 
+    'if exist("Password=")
+    '    If exist as ("Password=;")
+    '        Copy input to Output or Masking Password
+    '    Else     ("=XXXXXXX;")
+    '        Masking Password
+    'Else
+    '    Copy input to Output
+    '
     Function PasswordMasking(inputStr)
         On Error Resume Next
         Dim strArray, i
@@ -73,6 +81,6 @@
     '    MaskConnString = outMaskedStr
     'End Function
 
-%>  
+%>
 </body>
 </html>
