@@ -1,0 +1,73 @@
+
+using System.LINQ;
+
+public void Main()
+{
+    string delimiter = string.Empty;
+    string header = string.Empty;
+    string trailer = string.Empty;
+    string fileName = string.Empty;
+
+    string SourceFolder = Dts.Variables["User::SourceFolder"].Value.ToString();
+    string TargetFolder = Dts.Variables["User::TargetFolder"].Value.ToString();
+    string LogFolder = Dts.Variables["User::LogFolder"].Value.ToString();
+    string FilePattern = Dts.Variables["User::FilePattern"].Value.ToString();
+
+    //log
+    File.AppendAllText(LogFolder + "\\Log.log", "started on: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + Environment.NewLine);
+
+    try
+    {
+        //FilePattern = ["A*.txt", "B*.csv", "CCC.999", "*.888"]
+        string[] filters = Regex.Replace(FilePattern, @"\s+", string.Empty).Split(',');
+        string[] filePaths = filters.SelectMany(f => Directory.GetFiles(SourceFolder, f)).ToArray();
+        foreach (string f in filePaths)
+        {
+            string[] lines = System.IO.File.ReadAllLines(f);
+            Int32 lineCount = lines.Length;
+
+            //field is delimiterd by ["," or "|" or TAB]
+            Regex regex = new Regex(@"([,|\x09])");       //comma, pipe, tab
+            var matches = regex.Matches(lines[0]);
+            if (matches.Count > 0)
+            {
+                delimiter = matches[0].Value;
+                if (delimiter == ",")
+                    delimiter = "CSV";
+                else if (delimiter == "|")
+                    delimiter = "PIPE";
+                else
+                    delimiter = "TAB";
+            }
+            else
+                delimiter = "FIX";
+
+            header = "HH,FILE TYPE=AB,FORMAT=<" + delimiter + ">,DATE=" + DateTime.Now.ToShortDateString();
+            trailer = lineCount.ToString("Tail000000000");
+
+            //write new file
+            string targetName = TargetFolder + "\\" + Path.GetFileName(f);
+            File.WriteAllText(targetName, header + Environment.NewLine);
+            System.IO.File.AppendAllLines(targetName, lines);
+            File.AppendAllText(targetName, trailer + Environment.NewLine);
+
+            //log
+            File.AppendAllText(LogFolder + "\\Log.log", "filename: " + f + Environment.NewLine);
+        }
+
+        //log
+        File.AppendAllText(LogFolder + "\\Log.log", "finished on: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + Environment.NewLine);
+
+        Dts.TaskResult = (int)ScriptResults.Success;
+    }
+    catch (Exception exception)
+    {
+        // Create Log File for Errors
+        using (StreamWriter sw = File.CreateText(LogFolder + "\\ErrorLog.log"))
+        {
+            sw.WriteLine(exception.ToString());
+            Dts.TaskResult = (int)ScriptResults.Failure;
+        }
+    }
+
+}
