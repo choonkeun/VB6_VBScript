@@ -1,13 +1,13 @@
 #region isWatchableFile
 /// <summary>
 /// ---inside bracket use
+/// [YYYYMMDD] [YYYY-MM-DD] [YYMMDD] [YY-MM-DD] [MMDDYYYY] [MM-DD-YYYY] [MMDDYY] [MM-DD-YY]
+/// 
+/// ---outside bracket use
 /// @: Alpha Only [a-zA-Z]
 /// #: Numeric Only [0-9]
 /// +: AlphaNumeric [0-9a-zA-Z]
 /// .: Any character include special character
-/// [YYYYMMDD] [YYYY-MM-DD] [YYMMDD] [YY-MM-DD] [MMDDYYYY] [MM-DD-YYYY] [MMDDYY] [MM-DD-YY]
-/// 
-/// ---outside bracket use
 /// *: Any character and Any length
 /// |: or 
 /// (): group            (m|M|o)(c|C) same as [mMo][cC] but [] is not a group
