@@ -1,0 +1,298 @@
+Option Explicit
+
+Dim oRS0            As ADODB.Recordset
+Dim ConnClient      As ADODB.Connection
+Dim Str             As String
+Dim DBSERVER        As String
+Dim DBMSNAME        As String
+Dim StateClient     As Boolean
+Dim SheetExist      As Boolean
+Dim MyWorkSheetName As String
+Dim RowCount        As Integer
+Dim runDate         As String
+
+Public Sub BeginStep1()
+    'Dim MyWorkSheetName As String
+    
+    If Weekday(Date) = 2 Then   '1 = vbSunday - Sunday
+        runDate = Format(Date - 3, "mm-dd-yyyy")
+    Else
+        runDate = Format(Date - 1, "mm-dd-yyyy")
+    End If
+    'runDate = "2018-12-17 00:00:00.000"
+    'runDate = "2018-12-29"
+    
+    SheetExist = SheetExists(runDate, ActiveWorkbook)
+    If SheetExist Then
+         Sheets(runDate).Select
+    Else
+        ActiveWorkbook.Sheets.Add(After:=Worksheets(Worksheets.Count)).Name = runDate
+    End If
+    
+    MyWorkSheetName = ActiveSheet.Name
+    MsgBox (MyWorkSheetName)
+    
+    Cells.ClearContents
+    Cells.Interior.ColorIndex = 1                   'black  'set color
+    Cells.Interior.ColorIndex = xlColorIndexNone    'clear color
+    Cells.Borders.LineStyle = xlNone                'clear Borders
+    Cells.Borders(xlEdgeRight).Weight = xlThin
+    
+    Call SelectDatabase
+    Call BuildGroupValues
+End Sub
+
+Function SheetExists(SheetName As String, Optional wb As Excel.Workbook) As Boolean
+    Dim s As Excel.Worksheet
+    If wb Is Nothing Then Set wb = ThisWorkbook
+    On Error Resume Next
+    Set s = wb.Sheets(SheetName)
+    On Error GoTo 0
+    SheetExists = Not s Is Nothing
+End Function
+
+Public Sub SelectDatabase()
+    'Dim runDate As String
+
+    DBSERVER = "AAAAAAAAAAAAAA"
+    DBMSNAME = "BBBBBBBBBBBBBB"
+    
+    If Weekday(Date) = 2 Then   '1 = vbSunday - Sunday
+        runDate = Format(Date - 3, "yyyy-mm-dd 00:00:00.000")
+    Else
+        runDate = Format(Date - 1, "yyyy-mm-dd 00:00:00.000")
+    End If
+    'runDate = "2018-12-17 00:00:00.000"
+    
+    Call Open_ADODB
+    
+    if StateClient Then
+        Str = ""
+        Str = Str + "Select * FROM AAA"
+        
+        Set oRS0 = New ADODB.Recordset
+        oRS0.Open Str, ConnClient, adOpenStatic, adLockOptimistic   '---2, 2
+        
+        If Not oRS0.EOF Then
+            ActiveSheet.Cells(2, 1).CopyFromRecordset oRS0
+        Else
+            ActiveSheet.Cells(2, 1) = "Failed"
+        End If
+    End If
+    
+    Call Close_ADODB
+End Sub
+
+Public Sub Open_ADODB()
+    On Error Resume Next
+    Dim ConnStr
+    
+    Set ConnClient = New ADODB.Connection
+    ConnStr = "Provider=SQLOLEDB;Integrated Security=SSPI;" & _
+              "Initial Catalog=" & DBMSNAME & ";Data Source=" & DBSERVER & ";"
+    ConnClient.Open ConnStr
+    ConnClient.CommandTimeout = 0
+    StateClient = IIf(ConnClient.State = 1, True, False)
+
+End Sub
+
+Public Sub Close_ADODB()
+    On Error Resume Next
+    oRS0.Close: Set oRS0 = Nothing
+    ConnClient.Close: Set ConnClient = Nothing
+End Sub
+
+Public Sub BuildGroupValues()
+    'Dim MyWorkSheetName As String
+    'MyWorkSheetName = ActiveSheet.Name
+    
+    Dim myRow As Integer
+    Dim myCol As Integer
+    Dim TotalClaims As Long
+    Dim TotalLines As Long
+    
+    FindRange MyWorkSheetName, myRow, myCol
+    'Debug.Print "Last Row: " & myRow
+    'Debug.Print "Last Column: " & myCol
+    myCol = 5
+    
+    TotalClaims = Application.WorksheetFunction.Sum(Columns("B:B"))
+    TotalLines = Application.WorksheetFunction.Sum(Columns("C:C"))
+    Cells(myRow + 1, 2) = TotalClaims
+    Cells(myRow + 1, 3) = TotalLines
+    Cells(myRow + 1, 2).Interior.ColorIndex = 6
+    Cells(myRow + 1, 3).Interior.ColorIndex = 6
+
+    Dim wRange As String
+    wRange = "A1:" + "E" + CStr(myRow)
+    
+    Dim MyRange As Range
+    Set MyRange = Range(wRange)
+    
+    Dim Header(1 To 5) As String
+    
+    Dim Group1(1 To 100, 1 To 5)    As Variant  '9
+    Dim Group2(1 To 100, 1 To 5)    As Variant  'I
+    Dim Group3(1 To 100, 1 To 5)    As Variant  'O, 3
+    Dim Group4(1 To 100, 1 To 5)    As Variant  'C
+    
+    Dim e As Integer
+    Dim i As Integer
+    Dim o As Integer
+    Dim c As Integer
+    Dim t As Integer
+    
+    e = 1
+    i = 1
+    o = 1
+    c = 1
+    
+    'Debug.Print range("A1")
+    'Debug.Print Cells(1, 4)
+    For t = 1 To myCol
+        Header(t) = Cells(1, t)
+    Next
+    
+    
+    'For Each cell In MyRange
+    For t = 1 To myRow
+        If Cells(t, 1) Like "[9]*" Then
+            Group1(e, 1) = Cells(t, 1)
+            Group1(e, 2) = Cells(t, 2)
+            Group1(e, 3) = Cells(t, 3)
+            Group1(e, 4) = Cells(t, 4)
+            Group1(e, 5) = Cells(t, 5)
+            'Debug.Print Group1(e, 1)
+            e = e + 1
+        End If
+        If Cells(t, 1) Like "[I]*" Then
+            Group2(i, 1) = Cells(t, 1)
+            Group2(i, 2) = Cells(t, 2)
+            Group2(i, 3) = Cells(t, 3)
+            Group2(i, 4) = Cells(t, 4)
+            Group2(i, 5) = Cells(t, 5)
+            'Debug.Print Group2(i, 1)
+            i = i + 1
+        End If
+        If Cells(t, 1) Like "[O]*" Or Cells(t, 1) Like "[3]*" Then
+            Group3(o, 1) = Cells(t, 1)
+            Group3(o, 2) = Cells(t, 2)
+            Group3(o, 3) = Cells(t, 3)
+            Group3(o, 4) = Cells(t, 4)
+            Group3(o, 5) = Cells(t, 5)
+            'Debug.Print Group3(o, 1)
+            o = o + 1
+        End If
+        If Cells(t, 1) Like "[C]*" Then
+            Group4(c, 1) = Cells(t, 1)
+            Group4(c, 2) = Cells(t, 2)
+            Group4(c, 3) = Cells(t, 3)
+            Group4(c, 4) = Cells(t, 4)
+            Group4(c, 5) = Cells(t, 5)
+            'Debug.Print Group4(c, 1)
+            c = c + 1
+        End If
+    Next
+    
+    Dim tc As Long
+    Dim tl As Long
+    Dim colPos As Integer
+
+    '--Group1
+    tc = 0
+    tl = 0
+    colPos = 6
+    For t = 1 To e
+        Cells(t, colPos + 1) = Group1(t, 1)
+        Cells(t, colPos + 2) = Group1(t, 2)
+        Cells(t, colPos + 3) = Group1(t, 3)
+        tc = tc + Group1(t, 2)
+        tl = tl + Group1(t, 3)
+    Next
+    Call SetTotal(e, colPos, tc, tl)
+    
+    '--Group2
+    tc = 0
+    tl = 0
+    colPos = 10
+    For t = 1 To i
+        Cells(t, colPos + 1) = Group2(t, 1)
+        Cells(t, colPos + 2) = Group2(t, 2)
+        Cells(t, colPos + 3) = Group2(t, 3)
+        tc = tc + Group2(t, 2)
+        tl = tl + Group2(t, 3)
+    Next
+    Call SetTotal(i, colPos, tc, tl)
+    
+    '--Group3
+    tc = 0
+    tl = 0
+    colPos = 14
+    For t = 1 To o
+        Cells(t, colPos + 1) = Group3(t, 1)
+        Cells(t, colPos + 2) = Group3(t, 2)
+        Cells(t, colPos + 3) = Group3(t, 3)
+        tc = tc + Group3(t, 2)
+        tl = tl + Group3(t, 3)
+    Next
+    Call SetTotal(o, colPos, tc, tl)
+    
+    '--Group4
+    If c > 1 Then
+        tc = 0
+        tl = 0
+        colPos = 18
+        For t = 1 To c
+            Cells(t, colPos + 1) = Group4(t, 1)
+            Cells(t, colPos + 2) = Group4(t, 2)
+            Cells(t, colPos + 3) = Group4(t, 3)
+            tc = tc + Group4(t, 2)
+           tl = tl + Group4(t, 3)
+        Next
+        Call SetTotal(c, colPos, tc, tl)
+    End If
+    
+End Sub
+
+Public Sub SetTotal(e As Integer, colPos As Integer, tc As Long, tl As Long)
+    Cells(e, colPos + 1) = "Total:"
+    Cells(e, colPos + 2) = tc
+    Cells(e, colPos + 3) = tl
+    Cells(e, colPos + 1).Select: Selection.EntireColumn.AutoFit
+    Cells(e, colPos + 2).Select: Selection.EntireColumn.AutoFit
+    Cells(e, colPos + 3).Select: Selection.EntireColumn.AutoFit
+    Cells(e, colPos + 2).Interior.ColorIndex = 6
+    Cells(e, colPos + 3).Interior.ColorIndex = 6
+    '1:Black, 2:White, 3:Red, 4:Green, 5:Blue, 6:Yellow, 7:magento, 8:Cyan
+End Sub
+
+Public Sub FindRange(SheetName As String, ByRef myRow As Integer, ByRef myCol As Integer)
+    Dim LastRow As Long
+    Dim LastColumn As Long
+    
+    Dim myWorksheet As Worksheet
+    Set myWorksheet = ThisWorkbook.Worksheets(SheetName)
+    
+    With myWorksheet.Cells
+        LastRow = .Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious).Row
+        LastColumn = .Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious).Column
+        'Set NamedRangeDynamic = .Range(.Cells(1, 1), .Cells(LastRow, LastColumn))
+    End With
+   
+    myRow = LastRow
+    myCol = LastColumn
+    'Debug.Print "Last Row: " & LastRow
+    'Debug.Print "Last Column: " & LastColumn
+End Sub
+
+'---Not Used
+Sub UseLookAt()
+    Dim cell As Range
+    Set cell1 = Range("A:A").Find("Im", LookAt:=xlPart)
+    Debug.Print cell1.Address
+End Sub
+
+    'For iCounter = MyRange.Rows.Count To 2 Step -1
+    '    MyRange.Rows(iCounter).EntireRow.Insert
+    'Next iCounter
+
