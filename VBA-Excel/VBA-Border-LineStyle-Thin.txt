@@ -1,0 +1,104 @@
+VBA-Border-LineStyle-Thin.txt
+
+Public Sub BeginStep1()
+    Dim lastRow     As Integer
+    Dim beginCol    As Long
+    Dim rng         As Range
+    
+    'Generate WorkSheet date
+    If Weekday(Date) = 2 Then   '1 = vbSunday - Sunday
+        runDate = Format(Date - 3, "mm-dd-yyyy")
+    Else
+        runDate = Format(Date - 1, "mm-dd-yyyy")
+    End If
+    'runDate = "2018-12-29"
+    
+    SheetExist = SheetExists(runDate, ActiveWorkbook)
+    If SheetExist Then
+        Sheets(runDate).Select
+    Else
+        ActiveWorkbook.Sheets.Add(After:=Worksheets(Worksheets.Count)).Name = runDate
+    End If
+    
+    Set WS = ActiveSheet
+    WSName = ActiveSheet.Name
+    MsgBox (WSName)
+    '
+    'Clear Sheet
+    '
+    WS.Cells.ClearContents                              'Sheets("datebase").Select
+    WS.Cells.Interior.ColorIndex = 1                    'black  'set color
+    WS.Cells.Interior.ColorIndex = xlColorIndexNone     'clear color
+    WS.Cells.Borders.LineStyle = xlNone                 'clear Borders
+    WS.Cells.Borders(xlEdgeRight).Weight = xlThin
+    
+    Call SelectDatabase
+    Call BuildGroupValues
+    
+    Cells(1, 1) = "TradingPartner"
+    Cells(1, 2) = "TotalClaims"
+    Cells(1, 3) = "TotalLines"
+    Cells(1, 4) = "InputDate"
+    Cells(1, 5) = "FileType"
+
+    '
+    'Font Color and Size
+    '
+    Set rng = WS.Range("A1:E1")
+    rng.Font.Color = RGB(0, 0, 255)     'Blue
+    rng.Font.Size = 12
+    rng.Font.Bold = True
+    
+    Range("A:A").Select: Selection.EntireColumn.AutoFit
+    Range("B:B").Select: Selection.EntireColumn.AutoFit
+    Range("C:C").Select: Selection.EntireColumn.AutoFit
+    Range("D:D").Select: Selection.EntireColumn.AutoFit
+    Range("E:E").Select: Selection.EntireColumn.AutoFit
+    '
+    'Draw Lines
+    '
+    beginCol = 1
+    lastRow = LastRowInColumn(WS, beginCol)     'column A=1
+    lastRow = lastRow - 1                       'exclude Total line
+    Set rng = WS.Range("A2:E" & lastRow)
+    '
+    'Border LineStyle,Thin,Color,Shade
+    '
+    rng.Borders.LineStyle = xlDot               'Borders of the cells inside the range
+    rng.Borders.ThemeColor = 1                  'black, http://access-excel.tips/excel-vba-color-code-list/
+    rng.Borders.Weight = xlThin
+    rng.Borders.TintAndShade = -0.25            '1:solid
+
+    rng.Borders(xlEdgeTop).LineStyle = xlContinuous
+    rng.Borders(xlEdgeTop).Weight = xlThin
+    rng.Borders(xlEdgeLeft).LineStyle = xlContinuous
+    rng.Borders(xlEdgeLeft).Weight = xlThin
+    rng.Borders(xlEdgeRight).LineStyle = xlContinuous
+    rng.Borders(xlEdgeRight).Weight = xlThin
+    'rng.Borders(xlInsideVertical).LineStyle = xlNone
+    'rng.Borders(xlInsideHorizontal).LineStyle = xlNone
+    rng.Borders(xlEdgeBottom).LineStyle = xlDouble
+    
+    beginCol = 7
+    lastRow = LastRowInColumn(WS, beginCol)     'column G=7
+    lastRow = lastRow - 1                       'exclude Total line
+    Set rng = WS.Range("G1:I" & lastRow)
+    rng.Borders(xlEdgeBottom).LineStyle = xlDouble
+    
+    beginCol = 11
+    lastRow = LastRowInColumn(WS, beginCol)     'column K=11
+    lastRow = lastRow - 1                       'exclude Total line
+    Set rng = WS.Range("K1:M" & lastRow)
+    rng.Borders(xlEdgeBottom).LineStyle = xlDouble
+    
+    beginCol = 15
+    lastRow = LastRowInColumn(WS, beginCol)     'column O=15
+    lastRow = lastRow - 1                       'exclude Total line
+    Set rng = WS.Range("O1:Q" & lastRow)
+    rng.Borders(xlEdgeBottom).LineStyle = xlDouble
+    
+    Cells(1, 1).Select
+End Sub
+
+
+
