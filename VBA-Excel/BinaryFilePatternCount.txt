@@ -1,0 +1,243 @@
+Option Explicit
+
+Dim SheetExist  As Boolean
+Dim WSName      As String           'Active WorkSheet Name
+Dim WS          As Worksheet        'Active WorkSheet
+Dim workFolder  As String
+Dim workFile    As String
+Dim success     As Boolean
+
+Dim logFolder   As String
+Dim RowCount    As Integer
+
+Dim rowNo       As Integer
+Dim colNo       As Integer
+
+Public Sub BinaryFilePatternCount()
+    Dim bFile       As Variant
+    
+    workFolder = "C:\TEMP1\"
+    workFile = "ssis*.txt"
+    
+    Call Set_ActiveSheet
+    
+    workFile = Dir(workFolder + workFile)
+    bFile = ReadFile(workFile)
+    success = WriteByteArray(bFile, workFile)
+    
+    If success Then
+        Call Read_ICEFile
+    Else
+        MsgBox ("File Open failed")
+    End If
+    
+End Sub
+
+Private Function ReadFile(sFile As String) As Byte()
+    Dim nFile       As Integer
+    Dim buffer()    As Byte
+    Dim buff()      As Byte
+    Dim i, copy     As Long
+    
+    'Read as Binary --- Unit: Byte
+    With CreateObject("ADODB.Stream")
+        .Open
+        .Type = 1  ' adTypeBinary
+        .LoadFromFile workFolder + sFile    'Source File with Path
+        buffer = .Read
+        .Close
+    End With
+    
+    'Filter data: only allow 01 to 7F
+    copy = 0
+    For i = 0 To UBound(buffer)
+        If buffer(i) > 0 And buffer(i) < 128 Then
+            copy = copy + 1
+            ReDim Preserve buff(copy)
+            buff(copy - 1) = buffer(i)  'index start with 0
+        End If
+    Next
+    
+    ReadFile = buff
+Debug.Print UBound(buff)
+End Function
+
+Function WriteByteArray(vData As Variant, sFile As String) As Boolean
+    On Error GoTo ErrFailed
+    Dim iFileNum As Integer, lWritePos As Long
+    Dim buffer() As Byte
+    
+    buffer = vData
+    workFile = sFile + ".out"
+
+    iFileNum = FreeFile
+Debug.Print "iFileNum = " & iFileNum
+    Open workFolder + workFile For Binary Lock Read Write As #iFileNum
+    lWritePos = 1
+    Put #iFileNum, lWritePos, buffer
+    Close #iFileNum
+
+    WriteByteArray = True
+    Exit Function
+
+ErrFailed:
+Debug.Print "################################"
+Debug.Print "Error handling of WriteByteArray"
+Debug.Print "################################"
+    WriteByteArray = False
+    Close iFileNum
+Debug.Print Err.Description & "(" & Err.Number & ")"
+End Function
+
+Public Sub Set_ActiveSheet()
+    Dim fileName As String
+    
+    success = True
+    
+    'Generate WorkSheet date
+    workFile = Dir(workFolder + workFile)
+    If Len(workFile) > 0 Then
+        'Create Sheet
+        Dim arrName
+        arrName = Split(workFile, "_")
+        fileName = arrName(UBound(arrName))
+        
+        SheetExist = SheetExists(fileName, ActiveWorkbook)
+        If SheetExist Then
+            Sheets(fileName).Select
+        Else
+            ActiveWorkbook.Sheets.Add(After:=Worksheets(Worksheets.Count)).Name = fileName
+        End If
+        
+        Set WS = ActiveSheet
+        WSName = ActiveSheet.Name
+    Else
+        success = False
+    End If
+    '
+    'Clear Sheet
+    '
+    WS.Cells.ClearContents                              'Sheets("datebase").Select
+    WS.Cells.Interior.ColorIndex = 1                    'black  'set color
+    WS.Cells.Interior.ColorIndex = xlColorIndexNone     'clear color
+    WS.Cells.Borders.LineStyle = xlNone                 'clear Borders
+    WS.Cells.Borders(xlEdgeRight).Weight = xlThin
+End Sub
+
+Public Sub Read_ICEFile()
+    Dim rng         As range
+    Dim fileName    As String
+    Dim arrLine     As Variant
+    Dim arr         As Variant
+    Dim StartRow    As Integer  'lbound
+    Dim EndRow      As Integer  'ubound
+    
+    Dim range       As range
+    Dim i, t, f     As Integer
+    Dim newDate     As Date
+    Dim tmp, strData()    As String
+    
+    rowNo = 1
+    
+    'Title
+    Cells(rowNo, 1) = "#"
+    Cells(rowNo, 2) = "File_Name"
+    Cells(rowNo, 3) = "Count"
+    
+    Set range = WS.range("A" + CStr(rowNo) + ":C" + CStr(rowNo))
+    range.Font.Color = RGB(0, 0, 255)     'Blue
+    range.Font.Size = 12
+    range.Font.Bold = True
+    Cells(rowNo, 1).Font.Color = RGB(255, 0, 0)
+
+    'Double Line
+    Set rng = WS.range("A" + CStr(rowNo) + ":C" + CStr(rowNo))
+    rng.Borders(xlEdgeBottom).LineStyle = xlDouble
+    
+    rowNo = rowNo + 1
+    RowCount = 0
+    
+    'Read Text File and Count
+    arrLine = Load_File(workFolder + workFile)
+    StartRow = LBound(arrLine)
+    EndRow = UBound(arrLine)
+    
+    For i = StartRow To EndRow
+        arr = Split(arrLine(i), vbCrLf)
+        If (UBound(arr) > 1) And rowNo > 1 Then
+            t = InStrRev(arrLine(i), "wrote")
+            tmp = Mid(arrLine(i), t + 6)
+            strData = Split(tmp, " ")
+            Cells(rowNo, 3) = strData(0)
+            If Len(fileName) > 0 Then rowNo = rowNo + 1
+        Else
+            fileName = LTrim(arr(0))
+            RowCount = RowCount + 1
+            Cells(rowNo, 1) = RowCount
+            Cells(rowNo, 2) = fileName
+        End If
+    Next
+    
+    Cells(1, 2).Select: Selection.EntireColumn.AutoFit
+    Cells(1, 2).Select: Selection.EntireColumn.AutoFit
+    Cells(1, 1).Select
+        
+End Sub
+
+
+Function Load_File(fileName As String) As Variant
+    Dim strText As String, strData() As String
+    Dim fso, f As Variant
+    Dim i As Long
+    
+    Const ForReading = 1
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set f = fso.OpenTextFile(fileName, ForReading)
+    strText = f.ReadAll
+    'Do Until objFile.AtEndOfStream
+    '    strText = objFile.ReadLine
+    'Loop
+    f.Close
+    
+    strData() = Split(strText, "HealthPlanName")
+    Load_File = strData
+    
+End Function
+Function SheetExists(SheetName As String, Optional wb As Excel.Workbook) As Boolean
+    Dim s As Excel.Worksheet
+    If wb Is Nothing Then Set wb = ThisWorkbook
+    On Error Resume Next
+    Set s = wb.Sheets(SheetName)
+    On Error GoTo 0
+    SheetExists = Not s Is Nothing
+End Function
+
+Public Sub FindRange(SheetName As String, ByRef myRow As Integer, ByRef myCol As Integer)
+    Dim LastRow As Long
+    Dim LastColumn As Long
+    
+    Dim myWorksheet As Worksheet
+    Set myWorksheet = ThisWorkbook.Worksheets(SheetName)
+    
+    With myWorksheet.Cells
+        LastRow = .Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlPrevious).Row
+        LastColumn = .Find(What:="*", LookIn:=xlFormulas, LookAt:=xlPart, SearchOrder:=xlByColumns, SearchDirection:=xlPrevious).Column
+        'Set NamedRangeDynamic = .Range(.Cells(1, 1), .Cells(LastRow, LastColumn))
+    End With
+   
+    myRow = LastRow
+    myCol = LastColumn
+    'Debug.Print "Last Row: " & LastRow
+    'Debug.Print "Last Column: " & LastColumn
+End Sub
+
+Public Function LastRowInColumn(Optional sh As Worksheet, Optional colNumber As Long = 1) As Long
+    'Finds the last row in a particular column which has a value in it
+    If sh Is Nothing Then
+        Set sh = ActiveSheet
+    End If
+    LastRowInColumn = sh.Cells(sh.Rows.Count, colNumber).End(xlUp).Row
+End Function
+
+
+
